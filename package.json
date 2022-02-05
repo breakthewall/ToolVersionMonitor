@@ -1,0 +1,13 @@
+{
+  "name": "tool_version_monitor",
+  "version": "1.0.0",
+  "description": "Monitor Tool Version on Docker",
+  "author": "Joan Hérisson <joan.herisson@univ-evry.fr>",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.16.1"
+  }
+}
