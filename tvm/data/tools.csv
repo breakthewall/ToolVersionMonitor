@@ -1,0 +1,12 @@
+NAME,GITHUB_REPO,GITHUB_OWNER,CONDA_PKG,CONDA_CHANNEL,GALAXY_WRAPPER,GALAXY_OWNER
+RRParser,rrparser,brsynth,rrparser,conda-forge,rrparser,tduigou
+RetroPath2 wrapper,retropath2-wrapper,brsynth,retropath2_wrapper,conda-forge,retropath2,tduigou
+RP2Paths,rp2paths,brsynth,rp2paths,conda-forge,rp2paths,tduigou
+rpBASICDesign,rpbasicdesign,brsynth,rpbasicdesign,conda-forge,rpbasicdesign,tduigou
+Selenzy wrapper,selenzy-wrapper,brsynth,selenzy_wrapper,bioconda,selenzy,tduigou
+DNAWeaver SynBioCAD,dnaweaver_synbiocad,brsynth,dnaweaver_synbiocad,bioconda,dnaweaver,tduigou
+rpTools,rptools,brsynth,rptools,conda-forge
+BRS Utils,brs-utils,brsynth,brs_utils,conda-forge
+ChemLite,chemlite,brsynth,chemlite,conda-forge
+rxn rebuild,rxn_rebuild,brsynth,rxn_rebuild,conda-forge
+RRCache,rr_cache,brsynth,rr_cache,conda-forge

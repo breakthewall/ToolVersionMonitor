@@ -1,0 +1,10 @@
+name: tvm
+channels:
+  - conda-forge
+dependencies:
+  - python
+  - requests
+  - bottle
+  # - pysqlite3
+  - brs_utils
+  - bjoern
