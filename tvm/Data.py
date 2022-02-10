@@ -17,33 +17,21 @@ from typing import (
 import re
 from gspread import authorize as gspread_authorize
 from oauth2client.service_account import ServiceAccountCredentials
-
 from .Tool import Tool
-
 
 def read_from_file(
     filename: str,
-    github_token: str='',
     logger: Logger = getLogger(__name__)
 ) -> Dict:
     tools = {}
     with open(filename, mode='r') as f:
         records = csv_DictReader(f)
-        for row in records:
-            tools[
-                row['NAME'].lower().replace(' ', '_')
-            ] = Tool(
-                {k.lower(): v for k, v in row.items()},
-                github_token=github_token,
-                logger=logger
-            )
-    return tools
+    return records
 
 
 def read_from_googlesheet(
     googlesheet: str,
     googleapi: str,
-    github_token: str='',
     logger: Logger = getLogger(__name__)
 ) -> Dict:
     # define the scope
@@ -70,21 +58,7 @@ def read_from_googlesheet(
     # get all the records of the data
     records_data = sheet_instance.get_all_records()
 
-    tools = {}
-    for row in records_data[1:]:
-        tools[
-            row[Tool.field(0)].lower().replace(' ', '_')
-        ] = Tool(
-            values=row,
-            # values={
-            #     re.sub(r'\s+', '_', k.lower()): v
-            #     for k, v in row.items()
-            # },
-            github_token=github_token,
-            logger=logger
-        )
-
-    return tools
+    return records_data[1:]
 
 
 def save_to_csvfile(

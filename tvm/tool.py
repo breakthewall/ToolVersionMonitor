@@ -4,6 +4,7 @@ from os import (
     path as os_path
 )
 
+from types import MethodType
 from requests import (
     get as requests_get,
     JSONDecodeError
@@ -19,6 +20,27 @@ from logging import (
 from .Const import *
 
 
+def make_platform_version(platform: str):
+    def platform_version(self):
+        cursor = self.db().cursor()
+        cursor.execute(
+            f"SELECT * FROM versions WHERE tool='{self.name()}' AND platform='{platform}'"
+        )
+        try:
+            return cursor.fetchall()[0]
+        except IndexError as e:
+            return None
+    return platform_version
+
+def make_set_platform_version(platform: str):
+    def set_platform_version(self, version):
+        cursor = self.db().cursor()
+        cursor.execute(
+            f"INSERT INTO versions VALUES('{self.name()}', '{platform}', '{version}');"
+        )
+        self.db().commit()
+    return set_platform_version
+
 class Tool:
 
     __FIELDS = [
@@ -31,13 +53,27 @@ class Tool:
     def __init__(
         self,
         values: Dict,
+        db,
         github_token: str='',
         logger: Logger = getLogger(__name__)
     ):
         self.__logger = logger
         self.__GitHub_TOKEN = github_token
         self.__attributes = deepcopy(values)
-        self.force_check()
+        self.__logger.debug(self.dict())
+        for platform in ['github', 'conda', 'galaxy']:
+            setattr(
+                self,
+                f'{platform}_version',
+                MethodType(make_platform_version(platform), self)
+            )
+            setattr(
+                self,
+                f'set_{platform}_version',
+                MethodType(make_set_platform_version(platform), self)
+            )
+        self.__db = db
+        self.set_badges()
 
     @staticmethod
     def fields(logger: Logger = getLogger(__name__)) -> str:
@@ -52,13 +88,16 @@ class Tool:
             return ''
 
     def __repr__(self):
-        return f'Tool("{self.__name}")'
+        return f'Tool("{self.__attributes[Tool.__FIELDS[0]]}")'
 
     def __str__(self):
         return f'{vars(self)}'
     
     def dict(self) -> Dict:
         return self.__attributes
+
+    def db(self):
+        return self.__db
 
     def name(self) -> str:
         return self.__attributes[Tool.field(0, self.__logger)]
@@ -85,23 +124,26 @@ class Tool:
         return self.__attributes[Tool.field(6, self.__logger)]
 
     def force_check(self):
+        self.set_badges(True)
+
+    def set_badges(self, force: bool=False):
         self.__logger.debug(self.name())
         self.__logger.debug('='*len(self.name()))
         self.__logger.debug(f'Loading GitHub {self.name()} release ')
-        self.__github_latest_release = self.github_latest_release(True)
+        self.github_latest_release(force)
         self.__logger.debug(f'Loading GitHub {self.name()} badge ')
-        self.set_or_fetch_github_badge(True)
+        self.set_or_fetch_github_badge(force)
         self.__logger.debug(f'Loading Conda {self.name()} release ')
-        self.__conda_latest_release = self.conda_latest_release(True)
+        self.conda_latest_release(force)
         self.__logger.debug(f'Loading Conda {self.name()} badge ')
-        self.set_or_fetch_conda_badge(True)
+        self.set_or_fetch_conda_badge(force)
         self.__logger.debug(f'Loading Galaxy {self.name()} release ')
-        self.__galaxy_latest_release = self.galaxy_latest_release(True)
+        self.galaxy_latest_release(force)
         self.__logger.debug(f'Loading Galaxy {self.name()} badge ')
-        self.set_or_fetch_galaxy_badge(True)
+        self.set_or_fetch_galaxy_badge(force)
 
     def github_latest_release(self, force=False) -> str:
-        if force:
+        if force or is_None(self.github_version()):
             if self.__GitHub_TOKEN != '':
                 token = getenv('GITHUB_TOKEN', self.__GitHub_TOKEN)
                 headers = {'Authorization': f'token {token}'}
@@ -114,31 +156,35 @@ class Tool:
             r = requests_get(query_url, headers=headers)
             try:
                 self.__logger.debug(r.json())
-                return r.json().get('tag_name', '')
+                version = r.json().get('tag_name', '')
+                self.set_github_version(version)
+                return version
             except JSONDecodeError as e:
                 self.__logger.debug(r)
                 return ''
         else:
-            return self.__github_latest_release
+            return self.github_version()
 
     def conda_latest_release(self, force=False) -> str:
-        if force:
+        if force or is_None(self.conda_version()):
             query_url = f'https://api.anaconda.org/package/{self.conda_channel()}/{self.conda_pkg()}'
             self.__logger.debug(query_url)
             r = requests_get(query_url)
             try:
                 self.__logger.debug(r.json())
-                return r.json().get('latest_version', '')
+                version = r.json().get('latest_version', '')
+                self.set_conda_version(version)
+                return version
             except JSONDecodeError as e:
                 self.__logger.debug(r)
                 return ''
         else:
-            return self.__conda_latest_release
+            return self.conda_version()
 
     def galaxy_latest_release(self, force=False) -> str:
         if is_None(self.galaxy_wrapper()) or is_None(self.galaxy_owner()):
             return ''
-        if force:
+        if force or is_None(self.galaxy_version()):
             headers = {'content-type': 'application/json'}
             main_url = 'https://toolshed.g2.bx.psu.edu/api'
             # Get the latest release ID
@@ -146,7 +192,7 @@ class Tool:
             # Get version of the latest release
             return self.__get_galaxy_latest_release(main_url, headers, rel_id)
         else:
-            return self.__galaxy_latest_release
+            return self.galaxy_version()
 
     def __get_galaxy_latest_rel_id(
         self,
@@ -178,7 +224,9 @@ class Tool:
         )
         datas = r.json()
         self.__logger.debug(r.json())
-        return datas[1]['valid_tools'][0]['version']
+        version = datas[1]['valid_tools'][0]['version']
+        self.set_galaxy_version(version)
+        return version
 
     def github_badge(self) -> str:
         badge = self.set_or_fetch_github_badge()
@@ -251,7 +299,6 @@ class Tool:
         self.__logger.debug(badge)
         self.__logger.debug(badge_abs)
         return badge
-
 
 def get_color(v1: str, v2: str) -> str:
     try:

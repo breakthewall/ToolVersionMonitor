@@ -29,6 +29,8 @@ from .Data import (
     read_from_googlesheet,
     save_to_csvfile
 )
+from ._version import __version__
+from .Tool import Tool
 
 
 def render_tools(tool_names):
@@ -43,7 +45,10 @@ def render_tools(tool_names):
         rows += [(tool.name(), badges)]
     return template(
         os_path.join(STATIC_PATH, 'tvm.tpl'),
-        rows=rows
+        {
+            'rows': rows,
+            'version': __version__
+        }
     )
 
 @route('/<toolname>')
@@ -79,29 +84,69 @@ def redirect(url: str, status: int=303):
     response.status = status
     response.set_header('Location', url)
 
+def gen_tools(
+    tools,
+    db,
+    github_token: str='',
+    logger: Logger = getLogger(__name__)
+):
+    _tools = {}
+    for row in tools:
+        _tools[
+            row[Tool.field(0)].lower().replace(' ', '_')
+        ] = Tool(
+            values=row,
+            github_token=github_token,
+            db=db,
+            logger=logger
+        )
+
+    return _tools
+
 @route('/force_reload')
 def force_reload():
+    _reload(force=True)
+
+def _reload(force: bool):
+
     global TOOLS
+
+    if force is None:
+        force = True
+
     LOGGER.info('Refreshing releases and badges')
+
     if SOURCE_GOOGLESHEET != '':
-        TOOLS = read_from_googlesheet(
+        tools = read_from_googlesheet(
             googlesheet=SOURCE_GOOGLESHEET,
             googleapi=GOOGLEAPI,
-            github_token=GITHUB_TOKEN,
             logger=LOGGER
         )
+    else:
+        tools = read_from_file(
+            SOURCE_FILE,
+            logger=LOGGER
+        )
+
+    TOOLS = gen_tools(
+        tools=tools,
+        github_token=GITHUB_TOKEN,
+        db=DB,
+        logger=LOGGER
+    )
+
+    if SOURCE_GOOGLESHEET != '':
         save_to_csvfile(
             tools=TOOLS,
             filename=os_path.join(DATA_PATH, 'googlesheet.csv'),
             logger=LOGGER
         )
-    else:
-        TOOLS = read_from_file(
-            SOURCE_FILE,
-            github_token=GITHUB_TOKEN,
-            logger=LOGGER
-        )
+
+    for tool in TOOLS.values():
+        tool.set_badges(force=force)
+
     LOGGER.info('--> OK')
+
     redirect(f'http://{HOST}:{PORT}')
 
 @error(404)
@@ -121,6 +166,7 @@ def set_token(github_token: str):
     return token
 
 def start(
+    db,
     host: str=DEFAULT_port,
     port: int=DEFAULT_host,
     github_token: str='',
@@ -143,6 +189,8 @@ def start(
     GOOGLEAPI = googleapi if googleapi != '' else DEFAULT_googleapi
     global SOURCE_GOOGLESHEET
     SOURCE_GOOGLESHEET = source_googlesheet
+    global DB
+    DB = db
     global TOOLS
     TOOLS = {}
 
@@ -158,9 +206,9 @@ def start(
             logger.info(f'{param}: {globals()[param.upper()]}')
     logger.info('')
 
-    force_reload()
+    _reload(force=False)
     # Timer(60*10, force_check).start()
-    Timer(60*60, force_reload).start()
+    Timer(60*60, _reload, True).start()
     run(
         server='bjoern',
         host=host,
