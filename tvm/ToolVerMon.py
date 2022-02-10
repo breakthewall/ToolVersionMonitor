@@ -7,6 +7,7 @@ from logging import (
     getLogger,
     DEBUG
 )
+from csv import DictReader as csv_DictReader
 
 from bottle import (
     route,
@@ -17,12 +18,12 @@ from bottle import (
     response
 )
 
-from .db import read_from_file
 from .const import *
 from .Args import (
     DEFAULT_port,
     DEFAULT_host
 )
+from .tool import Tool
 
 def render_tools(tool_names):
     rows = []
@@ -75,22 +76,52 @@ def redirect(url: str, status: int=303):
 @route('/force_reload')
 def force_reload():
     global TOOLS
-    TOOLS = read_from_file(os_path.join(DATA_PATH, 'tools.csv'))
+    TOOLS = read_from_file(
+        os_path.join(DATA_PATH, 'tools.csv'),
+        github_token=GITHUB_TOKEN,
+        logger=LOGGER
+    )
     redirect(f'http://{HOST}:{PORT}')
 
 @error(404)
 def error404(error):
     return "The page does not exist..."
 
+
+def read_from_file(
+    filename: str,
+    github_token: str='',
+    logger: Logger = getLogger(__name__)
+):
+    logger.info('Refreshing releases and badges')
+    tools = {}
+    with open(filename, mode='r') as f:
+        records = csv_DictReader(f)
+        for row in records:
+            tools[
+                row['NAME'].lower().replace(' ', '_')
+            ] = Tool(
+                **{k.lower(): v for k, v in row.items()},
+                github_token=github_token,
+                logger=logger
+            )
+    logger.info('--> OK')
+    return tools
+
 def start(
     host: str=DEFAULT_port,
     port: int=DEFAULT_host,
+    github_token: str='',
     logger: Logger = getLogger(__name__)
 ):
     global HOST
     HOST = host
     global PORT
     PORT = port
+    global GITHUB_TOKEN
+    GITHUB_TOKEN = github_token
+    global LOGGER
+    LOGGER = logger
 
     force_reload()
     # Timer(60*10, force_check).start()
