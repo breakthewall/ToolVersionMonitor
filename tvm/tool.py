@@ -25,9 +25,11 @@ class Tool:
         conda_channel: str,
         galaxy_wrapper: str=None,
         galaxy_owner: str=None,
+        github_token: str='',
         logger: Logger = getLogger(__name__)
     ):
         self.__logger = logger
+        self.__GitHub_TOKEN = github_token
         self.__name = name
         self.__github_repo = github_repo
         self.__github_owner = github_owner
@@ -64,10 +66,17 @@ class Tool:
 
     def github_latest_release(self, force=False) -> str:
         if force:
-            token = getenv('GITHUB_TOKEN', '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')
+            if self.__GitHub_TOKEN != '':
+                token = getenv('GITHUB_TOKEN', self.__GitHub_TOKEN)
+                headers = {'Authorization': f'token {token}'}
+                self.__logger.debug(token)
+                self.__logger.debug(headers)
+            else:
+                headers = {}
             query_url = f"https://api.github.com/repos/{self.__github_owner}/{self.__github_repo}/releases/latest"
-            headers = {'Authorization': f'token {token}'}
+            self.__logger.debug(query_url)
             r = requests_get(query_url, headers=headers)
+            self.__logger.debug(r.json())
             return r.json()['tag_name']
         else:
             return self.__github_latest_release
@@ -75,7 +84,9 @@ class Tool:
     def conda_latest_release(self, force=False) -> str:
         if force:
             query_url = f'https://api.anaconda.org/package/{self.__conda_channel}/{self.__conda_pkg}'
+            self.__logger.debug(query_url)
             r = requests_get(query_url)
+            self.__logger.debug(r.json())
             return r.json()['latest_version']
         else:
             return self.__conda_latest_release
@@ -104,6 +115,7 @@ class Tool:
             headers=headers
         )
         changeset_rev = r.json()
+        self.__logger.debug(r.json())
         return changeset_rev[-1]
 
     def __get_galaxy_latest_release(
@@ -118,11 +130,13 @@ class Tool:
             headers=headers
         )
         datas = r.json()
+        self.__logger.debug(r.json())
         return datas[1]['valid_tools'][0]['version']
 
     def github_badge(self) -> str:
         badge = self.set_or_fetch_github_badge()
         link = f'https://github.com/{self.__github_owner}/{self.__github_repo}'
+        self.__logger.debug(badge)
         return f'<a href="{link}"><img src="badges/{badge}" alt="{self.__github_repo} GitHub latest release"></a>'
 
     def set_or_fetch_github_badge(self, force=False):
@@ -133,11 +147,14 @@ class Tool:
                 f'https://img.shields.io/badge/dynamic/json?url=https://api.github.com/repos/{self.__github_owner}/{self.__github_repo}/releases/latest&label=GitHub&query=tag_name&style=plastic',
                 badge_abs
             )
+        self.__logger.debug(badge)
+        self.__logger.debug(badge_abs)
         return badge
 
     def conda_badge(self) -> str:
         badge = self.set_or_fetch_conda_badge()
         link = f'https://anaconda.org/{self.__conda_channel}/{self.__conda_pkg}'
+        self.__logger.debug(badge)
         return f'<a href="{link}"><img src="badges/{badge}" alt="{self.__conda_pkg} Conda latest release"></a>'
 
     def set_or_fetch_conda_badge(self, force=False) -> str:
@@ -152,6 +169,8 @@ class Tool:
                 f'https://img.shields.io/badge/dynamic/json?url=https://api.anaconda.org/package/{self.__conda_channel}/{self.__conda_pkg}&label=Conda&query=latest_version&color={color}&style=plastic',
                 badge_abs
             )
+        self.__logger.debug(badge)
+        self.__logger.debug(badge_abs)
         return badge
 
     def galaxy_badge(self) -> str:
@@ -159,6 +178,7 @@ class Tool:
             return ''
         badge = self.set_or_fetch_galaxy_badge()
         link = f'https://toolshed.g2.bx.psu.edu/view/{self.__galaxy_owner}/{self.__galaxy_wrapper}'
+        self.__logger.debug(badge)
         return f'<a href="{link}"><img src="badges/{badge}" alt="{self.__galaxy_wrapper} Conda latest release"></a>'
 
     def set_or_fetch_galaxy_badge(self, force=False) -> str:
@@ -181,6 +201,8 @@ class Tool:
                 f'https://img.shields.io/badge/dynamic/json?url=https://tvm.micalis.inrae.fr/badges/{badge}.json&label=Galaxy&query=latest_version&color={color}&style=plastic',
                 badge_abs
             )
+        self.__logger.debug(badge)
+        self.__logger.debug(badge_abs)
         return badge
 
 

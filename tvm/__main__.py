@@ -33,6 +33,7 @@ def _cli():
     start(
         host=args.host,
         port=args.port,
+        github_token=args.github_token,
         logger=logger
     )
 

@@ -45,6 +45,10 @@ def _add_arguments(parser: ArgumentParser) -> ArgumentParser:
         default=DEFAULT_port
     )
     parser.add_argument(
+        '--github_token',
+        type=str
+    )
+    parser.add_argument(
         '--version',
         action='version',
         version='%(prog)s {}'.format(__version__),
