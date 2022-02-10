@@ -8,3 +8,6 @@ dependencies:
   # - pysqlite3
   - brs_utils
   - bjoern
+  - gspread
+  - google-api-python-client
+  - oauth2client

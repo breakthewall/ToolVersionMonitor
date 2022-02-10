@@ -34,6 +34,9 @@ def _cli():
         host=args.host,
         port=args.port,
         github_token=args.github_token,
+        source_file=args.source_file,
+        source_googlesheet=args.source_googlesheet,
+        googleapi=args.googleapi,
         logger=logger
     )
 

@@ -7,7 +7,6 @@ from logging import (
     getLogger,
     DEBUG
 )
-from csv import DictReader as csv_DictReader
 
 from bottle import (
     route,
@@ -18,12 +17,18 @@ from bottle import (
     response
 )
 
-from .const import *
+from .Const import *
 from .Args import (
     DEFAULT_port,
-    DEFAULT_host
+    DEFAULT_host,
+    DEFAULT_sourcefile,
+    DEFAULT_googleapi
 )
-from .tool import Tool
+from .Data import (
+    read_from_file,
+    read_from_googlesheet
+)
+
 
 def render_tools(tool_names):
     rows = []
@@ -76,11 +81,21 @@ def redirect(url: str, status: int=303):
 @route('/force_reload')
 def force_reload():
     global TOOLS
-    TOOLS = read_from_file(
-        os_path.join(DATA_PATH, 'tools.csv'),
-        github_token=GITHUB_TOKEN,
-        logger=LOGGER
-    )
+    LOGGER.info('Refreshing releases and badges')
+    if GOOGLEAPI != '':
+        TOOLS = read_from_googlesheet(
+            googlesheet=SOURCE_GOOGLESHEET,
+            googleapi=GOOGLEAPI,
+            github_token=GITHUB_TOKEN,
+            logger=LOGGER
+        )
+    else:
+        TOOLS = read_from_file(
+            SOURCE_FILE,
+            github_token=GITHUB_TOKEN,
+            logger=LOGGER
+        )
+    LOGGER.info('--> OK')
     redirect(f'http://{HOST}:{PORT}')
 
 @error(404)
@@ -88,40 +103,54 @@ def error404(error):
     return "The page does not exist..."
 
 
-def read_from_file(
-    filename: str,
-    github_token: str='',
-    logger: Logger = getLogger(__name__)
-):
-    logger.info('Refreshing releases and badges')
-    tools = {}
-    with open(filename, mode='r') as f:
-        records = csv_DictReader(f)
-        for row in records:
-            tools[
-                row['NAME'].lower().replace(' ', '_')
-            ] = Tool(
-                **{k.lower(): v for k, v in row.items()},
-                github_token=github_token,
-                logger=logger
-            )
-    logger.info('--> OK')
-    return tools
+def set_token(github_token: str):
+    token = github_token
+    if token is None or token == '':
+        try:
+            with open(os_path.join(CREDS_PATH, '.secrets')) as f:
+                secret = f.read()
+                token = secret
+        except FileNotFoundError as e:
+            pass
+    return token
 
 def start(
     host: str=DEFAULT_port,
     port: int=DEFAULT_host,
     github_token: str='',
+    source_file: str=DEFAULT_sourcefile,
+    source_googlesheet: str='',
+    googleapi: str=DEFAULT_googleapi,
     logger: Logger = getLogger(__name__)
 ):
     global HOST
     HOST = host
     global PORT
     PORT = port
-    global GITHUB_TOKEN
-    GITHUB_TOKEN = github_token
     global LOGGER
     LOGGER = logger
+    global GITHUB_TOKEN
+    GITHUB_TOKEN = set_token(github_token)
+    global SOURCE_FILE
+    SOURCE_FILE = source_file
+    global GOOGLEAPI
+    GOOGLEAPI = googleapi if googleapi != '' else DEFAULT_googleapi
+    global SOURCE_GOOGLESHEET
+    SOURCE_GOOGLESHEET = source_googlesheet
+    global TOOLS
+    TOOLS = {}
+
+    logger.info('Configuration')
+    logger.info('-------------')
+    params = locals()
+    for param in params:
+        if param == 'source_file' and source_googlesheet != '':
+            continue
+        if param == 'googleapi' and source_googlesheet == '':
+            continue
+        if globals()[param.upper()] != '':
+            logger.info(f'{param}: {globals()[param.upper()]}')
+    logger.info('')
 
     force_reload()
     # Timer(60*10, force_check).start()

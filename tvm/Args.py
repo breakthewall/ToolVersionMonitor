@@ -1,10 +1,14 @@
+from os import path as os_path
 from argparse import ArgumentParser
 from typing import Callable
 from brs_utils import add_logger_args
 from ._version import __version__
+from .Const import *
 
 DEFAULT_port = 80
 DEFAULT_host = 'localhost'
+DEFAULT_sourcefile = os_path.join(DATA_PATH, 'tools.csv')
+DEFAULT_googleapi = os_path.join(CREDS_PATH, 'googleapi.json')
 
 def build_args_parser(
     prog: str,
@@ -45,8 +49,24 @@ def _add_arguments(parser: ArgumentParser) -> ArgumentParser:
         default=DEFAULT_port
     )
     parser.add_argument(
+        '--source_file',
+        type=str,
+        default=DEFAULT_sourcefile
+    )
+    parser.add_argument(
+        '--source_googlesheet',
+        type=str,
+        default=''
+    )
+    parser.add_argument(
+        '--googleapi',
+        type=str,
+        default=''
+    )
+    parser.add_argument(
         '--github_token',
-        type=str
+        type=str,
+        default=''
     )
     parser.add_argument(
         '--version',

@@ -3,40 +3,57 @@ from os import (
     path as os_path
 )
 
-from requests import get as requests_get
+from requests import (
+    get as requests_get,
+    JSONDecodeError
+)
 from json import dump as json_dump
+from typing import Dict
 from brs_utils import download
 from logging import (
     Logger,
     getLogger
 )
 
-from .const import *
+from .Const import *
 
 
 class Tool:
 
     def __init__(
         self,
-        name: str,
-        github_repo: str,
-        github_owner: str,
-        conda_pkg: str,
-        conda_channel: str,
-        galaxy_wrapper: str=None,
-        galaxy_owner: str=None,
+        # name: str,
+        # github_repo: str,
+        # github_owner: str,
+        # conda_pkg: str,
+        # conda_channel: str,
+        # galaxy_wrapper: str=None,
+        # galaxy_owner: str=None,
+        values: Dict,
         github_token: str='',
         logger: Logger = getLogger(__name__)
     ):
         self.__logger = logger
         self.__GitHub_TOKEN = github_token
-        self.__name = name
-        self.__github_repo = github_repo
-        self.__github_owner = github_owner
-        self.__conda_pkg = conda_pkg
-        self.__conda_channel = conda_channel
-        self.__galaxy_wrapper = galaxy_wrapper
-        self.__galaxy_owner = galaxy_owner
+        for key in values:
+            # setattr(self, key, value)
+            if 'name' in key.lower():
+                self.__name = values[key]
+            if 'github' in key.lower():
+                if 'repo' in key.lower():
+                    self.__github_repo = values[key]
+                elif 'owner' in key.lower():
+                    self.__github_owner = values[key]
+            if 'conda' in key.lower():
+                if 'pkg' in key.lower() or 'package' in key.lower():
+                    self.__conda_pkg = values[key]
+                elif 'channel' in key.lower():
+                    self.__conda_channel = values[key]
+            if 'galaxy' in key.lower():
+                if 'wrapper' in key.lower():
+                    self.__galaxy_wrapper = values[key]
+                elif 'owner' in key.lower():
+                    self.__galaxy_owner = values[key]
         self.force_check()
 
     def __repr__(self):
@@ -76,8 +93,12 @@ class Tool:
             query_url = f"https://api.github.com/repos/{self.__github_owner}/{self.__github_repo}/releases/latest"
             self.__logger.debug(query_url)
             r = requests_get(query_url, headers=headers)
-            self.__logger.debug(r.json())
-            return r.json()['tag_name']
+            try:
+                self.__logger.debug(r.json())
+                return r.json().get('tag_name', '')
+            except JSONDecodeError as e:
+                self.__logger.debug(r)
+                return ''
         else:
             return self.__github_latest_release
 
@@ -86,8 +107,12 @@ class Tool:
             query_url = f'https://api.anaconda.org/package/{self.__conda_channel}/{self.__conda_pkg}'
             self.__logger.debug(query_url)
             r = requests_get(query_url)
-            self.__logger.debug(r.json())
-            return r.json()['latest_version']
+            try:
+                self.__logger.debug(r.json())
+                return r.json().get('latest_version', '')
+            except JSONDecodeError as e:
+                self.__logger.debug(r)
+                return ''
         else:
             return self.__conda_latest_release
 
@@ -114,9 +139,12 @@ class Tool:
             params={"name": self.__galaxy_wrapper, "owner": self.__galaxy_owner},
             headers=headers
         )
-        changeset_rev = r.json()
-        self.__logger.debug(r.json())
-        return changeset_rev[-1]
+        try:
+            changeset_rev = r.json()
+            self.__logger.debug(r.json())
+            return changeset_rev[-1]
+        except JSONDecodeError as e:
+            return ''
 
     def __get_galaxy_latest_release(
         self,
@@ -206,8 +234,16 @@ class Tool:
         return badge
 
 
-def get_color(v1, v2) -> str:
-    return 'brightgreen' if v1 == v2 else 'red'
+def get_color(v1: str, v2: str) -> str:
+    try:
+        # Remove 'v' prefix before version number
+        if v1[0] in ['v', 'V']:
+            v1 = v1[1:]
+        if v2[0] in ['v', 'V']:
+            v2 = v2[1:]
+        return 'brightgreen' if v1 == v2 else 'red'
+    except IndexError as e:
+        return 'grey'
 
-def is_None(value) -> bool:
-    return value is None or value == 'None'
+def is_None(value: str) -> bool:
+    return value is None or value == 'None' or value == ''
