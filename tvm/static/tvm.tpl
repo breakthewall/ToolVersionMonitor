@@ -5,7 +5,10 @@
     <link rel="stylesheet" href="static/tvm.css">
 </head>
 <body>
-{% set nb_tables = 2 %}
+<h1>Tool Version Monitor</h1>
+<h2>{{ version }}</h2>
+<hr>
+{% set nb_tables = 3 %}
 {% set nb_tools = rows|length %}
 {% set nb = nb_tools / nb_tables %}
 {% set nb = nb|int + 1 %}
