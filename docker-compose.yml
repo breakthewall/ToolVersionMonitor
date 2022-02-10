@@ -1,0 +1,22 @@
+#version: '3'
+version: '2.4'
+
+services:
+
+  tvm:
+    restart: always
+    image: tvm
+    build:
+      context: .
+      dockerfile: Dockerfile
+    working_dir: /app
+    volumes:
+      - $PWD:/app
+    ports:
+      - ${PORT}:8888
+    command: conda run -n tvm --no-capture-output python -m tvm --port 8888 --source_googlesheet 'Tool Version Monitoring'
+    networks:
+      - tvm
+
+networks:
+  tvm:
