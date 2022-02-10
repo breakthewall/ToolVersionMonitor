@@ -1,3 +1,4 @@
+from copy import deepcopy
 from os import (
     getenv,
     path as os_path
@@ -20,50 +21,68 @@ from .Const import *
 
 class Tool:
 
+    __FIELDS = [
+        'TOOL NAME',
+        'GITHUB REPO', 'GITHUB OWNER',
+        'CONDA PACKAGE', 'CONDA CHANNEL',
+        'GALAXY WRAPPER', 'GALAXY OWNER'
+    ]
+
     def __init__(
         self,
-        # name: str,
-        # github_repo: str,
-        # github_owner: str,
-        # conda_pkg: str,
-        # conda_channel: str,
-        # galaxy_wrapper: str=None,
-        # galaxy_owner: str=None,
         values: Dict,
         github_token: str='',
         logger: Logger = getLogger(__name__)
     ):
         self.__logger = logger
         self.__GitHub_TOKEN = github_token
-        for key in values:
-            # setattr(self, key, value)
-            if 'name' in key.lower():
-                self.__name = values[key]
-            if 'github' in key.lower():
-                if 'repo' in key.lower():
-                    self.__github_repo = values[key]
-                elif 'owner' in key.lower():
-                    self.__github_owner = values[key]
-            if 'conda' in key.lower():
-                if 'pkg' in key.lower() or 'package' in key.lower():
-                    self.__conda_pkg = values[key]
-                elif 'channel' in key.lower():
-                    self.__conda_channel = values[key]
-            if 'galaxy' in key.lower():
-                if 'wrapper' in key.lower():
-                    self.__galaxy_wrapper = values[key]
-                elif 'owner' in key.lower():
-                    self.__galaxy_owner = values[key]
+        self.__attributes = deepcopy(values)
         self.force_check()
+
+    @staticmethod
+    def fields(logger: Logger = getLogger(__name__)) -> str:
+        return Tool.__FIELDS
+
+    @staticmethod
+    def field(i: int, logger: Logger = getLogger(__name__)) -> str:
+        try:
+            return Tool.__FIELDS[i]
+        except IndexError as e:
+            logger.warning(f'Index {i} is out of range of {Tool.fields()}')
+            return ''
 
     def __repr__(self):
         return f'Tool("{self.__name}")'
 
     def __str__(self):
         return f'{vars(self)}'
+    
+    def dict(self) -> Dict:
+        return self.__attributes
 
     def name(self) -> str:
-        return self.__name
+        return self.__attributes[Tool.field(0, self.__logger)]
+
+    def github_repo(self) -> str:
+        return self.__attributes[Tool.field(1, self.__logger)]
+
+    def github_owner(self) -> str:
+        return self.__attributes[Tool.field(2, self.__logger)]
+
+    def conda_package(self) -> str:
+        return self.__attributes[Tool.field(3, self.__logger)]
+
+    def conda_pkg(self) -> str:
+        return self.conda_package()
+
+    def conda_channel(self) -> str:
+        return self.__attributes[Tool.field(4, self.__logger)]
+
+    def galaxy_wrapper(self) -> str:
+        return self.__attributes[Tool.field(5, self.__logger)]
+
+    def galaxy_owner(self) -> str:
+        return self.__attributes[Tool.field(6, self.__logger)]
 
     def force_check(self):
         self.__logger.debug(self.name())
@@ -90,7 +109,7 @@ class Tool:
                 self.__logger.debug(headers)
             else:
                 headers = {}
-            query_url = f"https://api.github.com/repos/{self.__github_owner}/{self.__github_repo}/releases/latest"
+            query_url = f"https://api.github.com/repos/{self.github_owner()}/{self.github_repo()}/releases/latest"
             self.__logger.debug(query_url)
             r = requests_get(query_url, headers=headers)
             try:
@@ -104,7 +123,7 @@ class Tool:
 
     def conda_latest_release(self, force=False) -> str:
         if force:
-            query_url = f'https://api.anaconda.org/package/{self.__conda_channel}/{self.__conda_pkg}'
+            query_url = f'https://api.anaconda.org/package/{self.conda_channel()}/{self.conda_pkg()}'
             self.__logger.debug(query_url)
             r = requests_get(query_url)
             try:
@@ -117,7 +136,7 @@ class Tool:
             return self.__conda_latest_release
 
     def galaxy_latest_release(self, force=False) -> str:
-        if is_None(self.__galaxy_wrapper) or is_None(self.__galaxy_owner):
+        if is_None(self.galaxy_wrapper()) or is_None(self.galaxy_owner()):
             return ''
         if force:
             headers = {'content-type': 'application/json'}
@@ -136,7 +155,7 @@ class Tool:
     ) -> str:
         r = requests_get(
             main_url + '/repositories/get_ordered_installable_revisions',
-            params={"name": self.__galaxy_wrapper, "owner": self.__galaxy_owner},
+            params={"name": self.galaxy_wrapper(), "owner": self.galaxy_owner()},
             headers=headers
         )
         try:
@@ -154,7 +173,7 @@ class Tool:
     ) -> str:
         r = requests_get(
             main_url + '/repositories/get_repository_revision_install_info',
-            params={"name": self.__galaxy_wrapper, "owner": self.__galaxy_owner, "changeset_revision": rel_id},
+            params={"name": self.galaxy_wrapper(), "owner": self.galaxy_owner(), "changeset_revision": rel_id},
             headers=headers
         )
         datas = r.json()
@@ -163,16 +182,16 @@ class Tool:
 
     def github_badge(self) -> str:
         badge = self.set_or_fetch_github_badge()
-        link = f'https://github.com/{self.__github_owner}/{self.__github_repo}'
+        link = f'https://github.com/{self.github_owner()}/{self.github_repo()}'
         self.__logger.debug(badge)
-        return f'<a href="{link}"><img src="badges/{badge}" alt="{self.__github_repo} GitHub latest release"></a>'
+        return f'<a href="{link}"><img src="badges/{badge}" alt="{self.github_repo()} GitHub latest release"></a>'
 
     def set_or_fetch_github_badge(self, force=False):
-        badge = f'GitHub_{self.__github_owner}_{self.__github_repo}.svg'
+        badge = f'GitHub_{self.github_owner()}_{self.github_repo()}.svg'
         badge_abs = os_path.join(BADGES_PATH, badge)
         if force or not os_path.exists(badge_abs):
             download(
-                f'https://img.shields.io/badge/dynamic/json?url=https://api.github.com/repos/{self.__github_owner}/{self.__github_repo}/releases/latest&label=GitHub&query=tag_name&style=plastic',
+                f'https://img.shields.io/badge/dynamic/json?url=https://api.github.com/repos/{self.github_owner()}/{self.github_repo()}/releases/latest&label=GitHub&query=tag_name&style=plastic',
                 badge_abs
             )
         self.__logger.debug(badge)
@@ -181,12 +200,12 @@ class Tool:
 
     def conda_badge(self) -> str:
         badge = self.set_or_fetch_conda_badge()
-        link = f'https://anaconda.org/{self.__conda_channel}/{self.__conda_pkg}'
+        link = f'https://anaconda.org/{self.conda_channel()}/{self.conda_pkg()}'
         self.__logger.debug(badge)
-        return f'<a href="{link}"><img src="badges/{badge}" alt="{self.__conda_pkg} Conda latest release"></a>'
+        return f'<a href="{link}"><img src="badges/{badge}" alt="{self.conda_pkg()} Conda latest release"></a>'
 
     def set_or_fetch_conda_badge(self, force=False) -> str:
-        badge = f'Conda_{self.__conda_channel}_{self.__conda_pkg}.svg'
+        badge = f'Conda_{self.conda_channel()}_{self.conda_pkg()}.svg'
         badge_abs = os_path.join(BADGES_PATH, badge)
         if force or not os_path.exists(badge_abs):
             color = get_color(
@@ -194,7 +213,7 @@ class Tool:
                 self.conda_latest_release()
             )
             download(
-                f'https://img.shields.io/badge/dynamic/json?url=https://api.anaconda.org/package/{self.__conda_channel}/{self.__conda_pkg}&label=Conda&query=latest_version&color={color}&style=plastic',
+                f'https://img.shields.io/badge/dynamic/json?url=https://api.anaconda.org/package/{self.conda_channel()}/{self.conda_pkg()}&label=Conda&query=latest_version&color={color}&style=plastic',
                 badge_abs
             )
         self.__logger.debug(badge)
@@ -202,17 +221,17 @@ class Tool:
         return badge
 
     def galaxy_badge(self) -> str:
-        if is_None(self.__galaxy_wrapper) or is_None(self.__galaxy_owner):
+        if is_None(self.galaxy_wrapper()) or is_None(self.galaxy_owner()):
             return ''
         badge = self.set_or_fetch_galaxy_badge()
-        link = f'https://toolshed.g2.bx.psu.edu/view/{self.__galaxy_owner}/{self.__galaxy_wrapper}'
+        link = f'https://toolshed.g2.bx.psu.edu/view/{self.galaxy_owner()}/{self.galaxy_wrapper()}'
         self.__logger.debug(badge)
-        return f'<a href="{link}"><img src="badges/{badge}" alt="{self.__galaxy_wrapper} Conda latest release"></a>'
+        return f'<a href="{link}"><img src="badges/{badge}" alt="{self.galaxy_wrapper()} Conda latest release"></a>'
 
     def set_or_fetch_galaxy_badge(self, force=False) -> str:
-        if is_None(self.__galaxy_wrapper) or is_None(self.__galaxy_owner):
+        if is_None(self.galaxy_wrapper()) or is_None(self.galaxy_owner()):
             return ''
-        badge = f'Galaxy_{self.__galaxy_owner}_{self.__galaxy_wrapper}.svg'
+        badge = f'Galaxy_{self.galaxy_owner()}_{self.galaxy_wrapper()}.svg'
         badge_abs = os_path.join(BADGES_PATH, badge)
         if force or not os_path.exists(badge_abs):
             color = get_color(

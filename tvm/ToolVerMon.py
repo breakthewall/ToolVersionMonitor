@@ -26,7 +26,8 @@ from .Args import (
 )
 from .Data import (
     read_from_file,
-    read_from_googlesheet
+    read_from_googlesheet,
+    save_to_csvfile
 )
 
 
@@ -82,11 +83,16 @@ def redirect(url: str, status: int=303):
 def force_reload():
     global TOOLS
     LOGGER.info('Refreshing releases and badges')
-    if GOOGLEAPI != '':
+    if SOURCE_GOOGLESHEET != '':
         TOOLS = read_from_googlesheet(
             googlesheet=SOURCE_GOOGLESHEET,
             googleapi=GOOGLEAPI,
             github_token=GITHUB_TOKEN,
+            logger=LOGGER
+        )
+        save_to_csvfile(
+            tools=TOOLS,
+            filename=os_path.join(DATA_PATH, 'googlesheet.csv'),
             logger=LOGGER
         )
     else:

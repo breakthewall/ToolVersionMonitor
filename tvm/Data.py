@@ -6,8 +6,14 @@ from logging import (
     getLogger,
     DEBUG
 )
-from csv import DictReader as csv_DictReader
-from typing import Dict
+from csv import (
+    DictReader as csv_DictReader,
+    DictWriter as csv_DictWriter
+)
+from typing import (
+    Dict,
+    List
+)
 import re
 from gspread import authorize as gspread_authorize
 from oauth2client.service_account import ServiceAccountCredentials
@@ -32,6 +38,7 @@ def read_from_file(
                 logger=logger
             )
     return tools
+
 
 def read_from_googlesheet(
     googlesheet: str,
@@ -66,15 +73,29 @@ def read_from_googlesheet(
     tools = {}
     for row in records_data[1:]:
         tools[
-            row['TOOL NAME'].lower().replace(' ', '_')
+            row[Tool.field(0)].lower().replace(' ', '_')
         ] = Tool(
-            values={
-                re.sub(r'\s+', '_', k.lower()): v
-                for k, v in row.items()
-            },
+            values=row,
+            # values={
+            #     re.sub(r'\s+', '_', k.lower()): v
+            #     for k, v in row.items()
+            # },
             github_token=github_token,
             logger=logger
         )
 
     return tools
 
+
+def save_to_csvfile(
+    tools: Dict[str, Tool],
+    filename: str,
+    logger: Logger = getLogger(__name__)
+):
+    logger.debug(tools)
+    tool_lst = [tool.dict() for tool in tools.values()]
+    keys = tool_lst[0].keys()
+    with open(filename, 'w') as csvfile:
+        writer = csv_DictWriter(csvfile, fieldnames=keys)
+        writer.writeheader()
+        writer.writerows(tool_lst)

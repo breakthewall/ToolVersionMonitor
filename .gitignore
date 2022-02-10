@@ -2,6 +2,7 @@ badges
 *.db
 .secrets
 tvm/creds/*
+data/googlesheet.csv
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
