@@ -5,9 +5,9 @@ dependencies:
   - python
   - requests
   - bottle
-  # - pysqlite3
   - brs_utils
   - bjoern
+  - jinja2
   - gspread
   - google-api-python-client
   - oauth2client
