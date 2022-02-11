@@ -67,6 +67,12 @@ class TVM_Database(Database):
         # except IndexError as e:
         #     return None
 
+    def exists(self, table: str, tool: str) -> bool:
+        result = self.sql_do(
+            f"SELECT * FROM '{table}' WHERE tool = '{tool}';"
+        )
+        return result != {}
+
     def set_version(
         self,
         platform: str,
@@ -75,18 +81,18 @@ class TVM_Database(Database):
     ):
         if version == '':
             return
-        if self.get_version(platform, tool) == '':
-            self.sql_do(
-                f'''
-                INSERT INTO {platform}_versions
-                VALUES('{tool}', '{version}');
-                '''
-            )
-        else:
+        if self.exists(f'{platform}_versions', tool):
             self.sql_do(
                 f'''
                 UPDATE '{platform}_versions'
                 SET version = '{version}'
                 WHERE tool = '{tool}';
+                '''
+            )
+        else:
+            self.sql_do(
+                f'''
+                INSERT INTO {platform}_versions
+                VALUES('{tool}', '{version}');
                 '''
             )
