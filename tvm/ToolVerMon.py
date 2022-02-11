@@ -31,6 +31,7 @@ from .Data import (
 )
 from ._version import __version__
 from .Tool import Tool
+from .Database import TVM_Database
 
 
 def render_tools(tool_names):
@@ -86,7 +87,7 @@ def redirect(url: str, status: int=303):
 
 def gen_tools(
     tools,
-    db,
+    db: TVM_Database,
     github_token: str='',
     logger: Logger = getLogger(__name__)
 ):
@@ -166,13 +167,13 @@ def set_token(github_token: str):
     return token
 
 def start(
-    db,
+    db: TVM_Database,
     host: str=DEFAULT_port,
-    port: int=DEFAULT_host,
-    github_token: str='',
-    source_file: str=DEFAULT_sourcefile,
-    source_googlesheet: str='',
-    googleapi: str=DEFAULT_googleapi,
+    port: int = DEFAULT_host,
+    github_token: str = '',
+    source_file: str = DEFAULT_sourcefile,
+    source_googlesheet: str = '',
+    googleapi: str = DEFAULT_googleapi,
     logger: Logger = getLogger(__name__)
 ):
     global HOST

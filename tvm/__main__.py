@@ -15,19 +15,9 @@ from .Args import (
     build_args_parser
 )
 from .ToolVerMon import start
+from .Database import TVM_Database
 from .Const import *
 
-
-def init_db():
-    conn = sqlite3.connect(os_path.join(HERE, 'versions.db'))
-    cursor = conn.cursor()
-    # Create table
-    cursor.execute(
-        '''CREATE TABLE IF NOT EXISTS versions
-                (tool text, platform text, version text, UNIQUE(tool))'''
-    )
-    conn.commit()
-    return conn, cursor
 
 def _cli():
     parser = build_args_parser(
@@ -44,7 +34,10 @@ def _cli():
 
     logger.debug('args: ' + str(args))
 
-    conn, cursor = init_db()
+    db = TVM_Database(
+        os_path.join(HERE, 'tvm.db'),
+        logger
+    )
 
     start(
         host=args.host,
@@ -53,7 +46,7 @@ def _cli():
         source_file=args.source_file,
         source_googlesheet=args.source_googlesheet,
         googleapi=args.googleapi,
-        db=conn,
+        db=db,
         logger=logger
     )
 

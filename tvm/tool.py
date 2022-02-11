@@ -18,10 +18,12 @@ from logging import (
 )
 
 from .Const import *
+from .Database import Database
 
 
 def make_platform_version(platform: str):
     def platform_version(self):
+        return self.db().get_version(platform=platform, tool=self.name())
         cursor = self.db().cursor()
         cursor.execute(
             f"SELECT * FROM versions WHERE tool='{self.name()}' AND platform='{platform}'"
@@ -34,11 +36,16 @@ def make_platform_version(platform: str):
 
 def make_set_platform_version(platform: str):
     def set_platform_version(self, version):
-        cursor = self.db().cursor()
-        cursor.execute(
-            f"INSERT INTO versions VALUES('{self.name()}', '{platform}', '{version}');"
+        self.db().set_version(
+            platform=platform,
+            tool=self.name(),
+            version=version
         )
-        self.db().commit()
+        # cursor = self.db().cursor()
+        # cursor.execute(
+        #     f"INSERT INTO versions VALUES('{self.name()}', '{platform}', '{version}');"
+        # )
+        # self.db().commit()
     return set_platform_version
 
 class Tool:
@@ -53,7 +60,7 @@ class Tool:
     def __init__(
         self,
         values: Dict,
-        db,
+        db: Database,
         github_token: str='',
         logger: Logger = getLogger(__name__)
     ):
