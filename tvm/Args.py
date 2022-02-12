@@ -7,7 +7,7 @@ from .Const import *
 
 DEFAULT_port = 80
 DEFAULT_host = 'localhost'
-DEFAULT_sourcefile = os_path.join(DATA_PATH, 'tools.csv')
+DEFAULT_sourcefile = CACHE_FILE
 DEFAULT_googleapi = os_path.join(CREDS_PATH, 'googleapi.json')
 
 def build_args_parser(
@@ -51,7 +51,7 @@ def _add_arguments(parser: ArgumentParser) -> ArgumentParser:
     parser.add_argument(
         '--source_file',
         type=str,
-        default=DEFAULT_sourcefile
+        default=''
     )
     parser.add_argument(
         '--source_googlesheet',

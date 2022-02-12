@@ -1,3 +1,4 @@
+from asyncio.log import logger
 from os import (
     path as os_path
 )
@@ -7,7 +8,8 @@ from logging import (
     getLogger,
     DEBUG
 )
-
+from pathlib import Path
+from typing import *
 from bottle import (
     route,
     run,
@@ -27,11 +29,10 @@ from .Args import (
 from .Data import (
     read_from_file,
     read_from_googlesheet,
-    save_to_csvfile
+    save_to_cache
 )
 from ._version import __version__
-from .Tool import Tool
-from .Database import TVM_Database
+from .Tool import gen_tools
 
 
 def render_tools(tool_names):
@@ -85,63 +86,60 @@ def redirect(url: str, status: int=303):
     response.status = status
     response.set_header('Location', url)
 
-def gen_tools(
-    tools,
-    db: TVM_Database,
-    github_token: str='',
-    logger: Logger = getLogger(__name__)
-):
-    _tools = {}
-    for row in tools:
-        _tools[
-            row[Tool.field(0)].lower().replace(' ', '_')
-        ] = Tool(
-            values=row,
-            github_token=github_token,
-            db=db,
-            logger=logger
-        )
-
-    return _tools
-
 @route('/force_reload')
 def force_reload():
     _reload(force=True)
 
-def _reload(force: bool):
+def _reload(force: bool = False):
 
     global TOOLS
 
-    if force is None:
-        force = True
-
     LOGGER.info('Refreshing releases and badges')
 
-    if SOURCE_GOOGLESHEET != '':
-        tools = read_from_googlesheet(
-            googlesheet=SOURCE_GOOGLESHEET,
-            googleapi=GOOGLEAPI,
-            logger=LOGGER
-        )
-    else:
-        tools = read_from_file(
-            SOURCE_FILE,
-            logger=LOGGER
-        )
+    tools = []
+    versions = []
 
+    # READ DATA
+    # Source file has been specified in CLI
+    if SOURCE_FILE != '':
+        tools = read_from_file(SOURCE_FILE)
+    else:  # Googlesheet has been specified in CLI
+        # If source cache file exists, read from it
+        if os_path.exists(CACHE_FILE) and not force:
+            tools = read_from_file(
+                DEFAULT_sourcefile,
+                LOGGER
+            )
+        else:
+            tools = read_from_googlesheet(
+                googlesheet=SOURCE_GOOGLESHEET,
+                googleapi=GOOGLEAPI,
+                logger=LOGGER
+            )
+
+    # TOOLS
     TOOLS = gen_tools(
         tools=tools,
         github_token=GITHUB_TOKEN,
-        db=DB,
+        force=force,
         logger=LOGGER
     )
 
-    if SOURCE_GOOGLESHEET != '':
-        save_to_csvfile(
-            tools=TOOLS,
-            filename=os_path.join(DATA_PATH, 'googlesheet.csv'),
-            logger=LOGGER
-        )
+    # # VERSIONS
+    # # If versions cache file exists, read from it
+    # if os_path.exists(VERSIONS_FILE):
+    #     versions = read_from_file(
+    #         VERSIONS_FILE,
+    #         LOGGER
+    #     )
+    # else:
+    #     for tool in TOOLS.values():
+    #         print(tool, type(tool))
+
+    save_to_cache(
+        tools=TOOLS,
+        logger=LOGGER
+    )
 
     for tool in TOOLS.values():
         tool.set_badges(force=force)
@@ -167,7 +165,6 @@ def set_token(github_token: str):
     return token
 
 def start(
-    db: TVM_Database,
     host: str=DEFAULT_port,
     port: int = DEFAULT_host,
     github_token: str = '',
@@ -190,10 +187,12 @@ def start(
     GOOGLEAPI = googleapi if googleapi != '' else DEFAULT_googleapi
     global SOURCE_GOOGLESHEET
     SOURCE_GOOGLESHEET = source_googlesheet
-    global DB
-    DB = db
     global TOOLS
     TOOLS = {}
+
+    Path(CACHE_PATH).mkdir(parents=True, exist_ok=True)
+    Path(BADGES_PATH).mkdir(parents=True, exist_ok=True)
+    Path(VERSIONS_PATH).mkdir(parents=True, exist_ok=True)
 
     logger.info('Configuration')
     logger.info('-------------')

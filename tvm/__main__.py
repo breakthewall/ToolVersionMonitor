@@ -15,7 +15,6 @@ from .Args import (
     build_args_parser
 )
 from .ToolVerMon import start
-from .Database import TVM_Database
 from .Const import *
 
 
@@ -24,7 +23,11 @@ def _cli():
         prog = 'tvm',
         description = 'Tool Version Monitor compare releases'
     )
-    args   = parser.parse_args()
+    args  = parser.parse_args()
+
+    if args.source_file == '' and args.source_googlesheet == '':
+        print("Either 'source_file' or 'source_googlesheet' has to be defined")
+        exit()
 
     if args.log.lower() in ['silent', 'quiet'] or args.silent:
         args.log = 'CRITICAL'
@@ -34,11 +37,6 @@ def _cli():
 
     logger.debug('args: ' + str(args))
 
-    db = TVM_Database(
-        os_path.join(HERE, 'tvm.db'),
-        logger
-    )
-
     start(
         host=args.host,
         port=args.port,
@@ -46,11 +44,8 @@ def _cli():
         source_file=args.source_file,
         source_googlesheet=args.source_googlesheet,
         googleapi=args.googleapi,
-        db=db,
         logger=logger
     )
-
-    conn.close()
 
 
 if __name__ == '__main__':
