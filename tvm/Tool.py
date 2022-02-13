@@ -52,14 +52,17 @@ class Tool:
         'CONDA PACKAGE', 'CONDA CHANNEL',
         'GALAXY WRAPPER', 'GALAXY OWNER'
     ]
+    __HOST = ''
 
     def __init__(
         self,
         values: Dict,
+        host: str,
         github_token: str='',
         force: bool=True,
         logger: Logger = getLogger(__name__)
     ):
+        __HOST = host
         self.__logger = logger
         self.__GitHub_TOKEN = github_token
         self.__attributes = deepcopy(values)
@@ -348,7 +351,7 @@ class Tool:
             self.get_version('conda')
         )
         download(
-            f'https://img.shields.io/badge/dynamic/json?url=https://tvm.micalis.inrae.fr/badges/{badge}.json&label=Galaxy&query=latest_version&color={color}&style=plastic',
+            f'https://img.shields.io/badge/dynamic/json?url=https://{Tool.__HOST}/versions/{self.name()}.json&label=Galaxy&query=galaxy&color={color}&style=plastic',
             badge_abs
         )
         self.__logger.debug(badge)
@@ -370,6 +373,7 @@ def is_None(value: str) -> bool:
 
 def gen_tools(
     tools: List,
+    host: str,
     github_token: str='',
     force: bool=True,
     logger: Logger = getLogger(__name__)
@@ -383,6 +387,7 @@ def gen_tools(
             values=tools[i_tool],
             github_token=github_token,
             force=force,
+            host=host,
             logger=logger
         )
     return _tools

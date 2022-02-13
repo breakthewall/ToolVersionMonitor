@@ -76,6 +76,13 @@ def badges(filename):
         root=BADGES_PATH
     )
 
+@route('/versions/<filename:re:.*\.json>')
+def badges(filename):
+    return static_file(
+        filename,
+        root=VERSIONS_PATH
+    )
+
 @route('/force_check')
 def force_check():
     for tool in TOOLS.values():
@@ -122,6 +129,7 @@ def _reload(force: bool = False):
         tools=tools,
         github_token=GITHUB_TOKEN,
         force=force,
+        host=HOST,
         logger=LOGGER
     )
 
